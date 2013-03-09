@@ -319,7 +319,7 @@ PUB integerToDecimal(number, length) '' 5 Stack Longs
 
   length := (10 - ((length <# 10) #> 0))
 
-  decimalString := "+"
+  decimalString := "0"
   if(number < 0)
     decimalString := "-"
 
