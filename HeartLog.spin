@@ -1,6 +1,8 @@
 {{
-       heart
+       heart log
+       a logger for your heart
 }}
+
 CON
   led_pin = 10
   status_pin = 2
@@ -9,68 +11,100 @@ CON
 VAR
   Long is_reset
   Long log_count
+  Long log_status
   
 OBJ
-
   system : "Propeller Board of Education"
   sd     : "PropBOE MicroSD"
   pst    : "Parallax Serial Terminal Plus"
-  time   :  "Timing"
+  time   : "Timing"
 
 PRI init
   system.Clock(80_000_000)
+  log_status := FALSE
+  log_count := 0
+  is_reset := TRUE
+  
   dira[led_pin] := 1
   dira[status_pin] := 1
   dira[heart_pin] := 0
   outa[heart_pin] := 1
-    
-PUB go | x, y, t, current_count, tick
-  init
   
   repeat 10
     status_on
     led_on
-    time.Pause(100)
+    time.Pause(200)
     status_off
     led_off
-    time.Pause(100)
- 
-  'log_count := 1
-  status_on
-  repeat log_count from 0 to 10
-    sd.Mount(0)
-    sd.FileNew(FileName(log_count))
-    sd.FileOpen(FileName(log_count), "W")
+    time.Pause(200)
+  
+PUB go | current_count, tick
+
+  init
+
+  repeat log_count from 0 to 9 '0-10 range limit due to FileName function
+
+    'if toggle
+    
+    OpenFile(log_count)
      
-    sd.WriteStr(String("Heart Log", 13, 10))
-    pst.Str(String("Heart Log", 13, 10))
+    '******************** use the first heartbeat to set current_count
+    repeat until led_beat 
+      time.Pause(10)    
+    current_count := cnt    
+    '*********************     
+    repeat 1000 'change to: while logging
+    '1000 @40 bpm = 25 min : @80 bpm =  min : @180 bpm = 5.5 min
      
-    current_count := cnt
-    is_reset := TRUE
-     
-    repeat 100 
       repeat until led_beat
-        time.Pause(1)
+        'check if the toggle is pushed
         
-      'time.Pause(10) 'if this is not long enough many zeros will ensue  
-      tick := cnt - current_count
-      current_count := cnt
-     
-      if tick > 80_000_000
-        tick := 0
+        time.Pause(10)
         
-      sd.WriteDec(tick)
-      sd.WriteByte(13)' Carriage return
-      sd.WriteByte(10)' New line
-      
+      if log_status
+        tick := cnt - current_count
+        current_count := cnt
+         
+        if tick > 100_000_000
+          tick := 0
+        if tick < 1
+          tick := 0
+         
+        'if tick > 1 
+        sd.WriteDec(tick)
+        sd.WriteByte(13)' Carriage return
+        sd.WriteByte(10)' New line
+         
       pst.Dec(tick)
       pst.NewLine
-     
-    sd.FileClose  
-    sd.Unmount
-     
+      
+    CloseFile
+
+PRI logging
+  'log_status := TRUE
+  
+  return log_status
+  
+PRI OpenFile(log_increment)
+  status_on
+  sd.Mount(0)
+  sd.FileDelete(FileName(log_increment))
+  sd.FileNew(FileName(log_increment))
+  sd.FileOpen(FileName(log_increment), "W")
+  log_status := TRUE
+  
+  'sd.WriteStr(FileName(log_count))
+  'sd.WriteStr(String(13, 10))
+  pst.Str(FileName(log_count))
+  pst.Str(String(13, 10))
+  
+    
+PRI CloseFile
+  sd.FileClose  
+  sd.Unmount
+  log_status := FALSE
   status_off
-     
+       
 PRI FileName(x)
   
   'ASCII0_STREngine_1.integerToDecimal(log_count, 2)
